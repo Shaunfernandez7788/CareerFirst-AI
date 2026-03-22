@@ -38,7 +38,7 @@ export default function InterviewContent() {
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
       recognition.continuous = true; 
-      recognition.interimResults = false; // Only stable results
+      recognition.interimResults = false; 
       recognition.lang = "en-US";
 
       recognition.onresult = (event: any) => {
@@ -173,43 +173,46 @@ export default function InterviewContent() {
   };
 
   return (
-    <div className="w-full max-w-6xl flex flex-col items-center">
+    // FIXED: Main container now ensures full width and vertical centering
+    <div className="w-full flex flex-col items-center justify-center min-h-[80vh]">
+      
       {/* HEADER SECTION */}
       <div className="text-center mb-10">
-        <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight mb-2 drop-shadow-sm">
+        <h1 className="text-6xl font-extrabold text-slate-900 tracking-tight mb-4 drop-shadow-sm">
           Interview Pro <span className="text-blue-600">🚀</span>
         </h1>
-        <div className="inline-block bg-white border border-slate-200 text-blue-600 px-6 py-2 rounded-2xl text-sm font-bold uppercase tracking-widest shadow-sm">
+        <div className="inline-block bg-white border border-slate-200 text-blue-600 px-8 py-2.5 rounded-2xl text-sm font-bold uppercase tracking-widest shadow-sm">
           Live Score: {score}
         </div>
       </div>
 
       {!isStarted ? (
-        <div className="bg-white p-10 rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        // CARD IS NOW CENTERED
+        <div className="bg-white p-12 rounded-[2.5rem] shadow-2xl shadow-slate-200/60 border border-slate-100 w-full max-w-lg space-y-8 animate-in fade-in zoom-in-95 duration-500">
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Target Role</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-3 ml-2 tracking-widest">Target Job Role</label>
             <input
               placeholder="e.g. Java Developer"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 font-medium transition-all"
+              className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all outline-none text-slate-900 font-semibold"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Company (Optional)</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase mb-3 ml-2 tracking-widest">Company (Optional)</label>
             <input
               placeholder="e.g. MindMatrix"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 font-medium transition-all"
+              className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all outline-none text-slate-900 font-semibold"
             />
           </div>
           <button
             onClick={startInterview}
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg active:scale-95 disabled:bg-slate-300 shadow-blue-200"
+            className="w-full bg-blue-600 text-white py-5 rounded-2xl font-bold text-xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 active:scale-[0.98] disabled:bg-slate-300"
           >
-            {loading ? "Preparing Room..." : "Start Interview"}
+            {loading ? "Initializing..." : "Start Interview Session"}
           </button>
         </div>
       ) : (
@@ -239,13 +242,13 @@ export default function InterviewContent() {
               ref={chatContainerRef}
               className="bg-white p-8 h-[480px] overflow-y-auto rounded-3xl shadow-xl border border-slate-100 space-y-6 scroll-smooth"
             >
-              {chat.length === 0 && <p className="text-slate-400 italic text-center mt-24">Setting up your interview session...</p>}
+              {chat.length === 0 && <p className="text-slate-400 italic text-center mt-24">Preparing your tailored interview questions...</p>}
               {chat.map((msg, i) => (
                 <div key={i} className={`flex flex-col ${msg.type === "user-answer" ? "items-end" : "items-start"}`}>
                   <span className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1">
-                    {msg.type === "ai-question" ? "Interviewer" : msg.type === "ai-feedback" ? "Insight" : "You"}
+                    {msg.type === "ai-question" ? "Interviewer" : msg.type === "ai-feedback" ? "Real-time Insight" : "Your Answer"}
                   </span>
-                  <div className={`p-4 rounded-2xl max-w-[85%] text-[13px] leading-relaxed shadow-sm transition-all ${
+                  <div className={`p-5 rounded-2xl max-w-[85%] text-[13.5px] leading-relaxed shadow-sm transition-all ${
                     msg.type === "user-answer" 
                       ? "bg-blue-600 text-white rounded-tr-none" 
                       : msg.type === "ai-feedback" 
@@ -256,36 +259,35 @@ export default function InterviewContent() {
                   </div>
                 </div>
               ))}
-              {loading && <div className="text-blue-500 text-[11px] animate-pulse font-bold tracking-widest uppercase">Processing Response...</div>}
+              {loading && <div className="text-blue-500 text-[11px] animate-pulse font-bold tracking-widest uppercase ml-1">Analyzing Response...</div>}
             </div>
 
             <div className="relative">
               <textarea
                 value={currentAnswer}
                 onChange={(e) => setCurrentAnswer(e.target.value)}
-                placeholder="Share your technical expertise here..."
-                className="w-full p-6 bg-white border border-slate-200 rounded-3xl shadow-2xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 min-h-[140px] transition-all pr-36 text-sm leading-relaxed"
+                placeholder="Express your thoughts clearly..."
+                className="w-full p-7 bg-white border border-slate-200 rounded-[2rem] shadow-2xl focus:ring-4 focus:ring-blue-50 outline-none text-slate-900 min-h-[160px] transition-all pr-40 text-sm leading-relaxed"
               />
-              <div className="absolute right-4 bottom-4 flex gap-3">
+              <div className="absolute right-5 bottom-5 flex gap-4">
                 <button
                   type="button"
                   onClick={toggleListening}
-                  className={`p-3.5 rounded-2xl transition-all shadow-sm ${isListening ? "bg-red-500 animate-pulse text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
+                  className={`p-4 rounded-2xl transition-all shadow-md ${isListening ? "bg-red-500 animate-pulse text-white" : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}
                 >
-                  {isListening ? "⏹️" : "🎤"}
+                  {isListening ? "⏹️ Stop" : "🎤 Speak"}
                 </button>
                 <button
                   type="button"
                   onClick={submitAnswer}
                   disabled={!currentAnswer.trim() || loading}
-                  className="bg-blue-600 text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-blue-700 shadow-xl active:scale-95 disabled:bg-slate-200 transition-all text-sm"
+                  className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-100 active:scale-95 disabled:bg-slate-200 transition-all text-sm"
                 >
-                  Submit
+                  Send
                 </button>
               </div>
             </div>
           </div>
-
         </div>
       )}
     </div>
