@@ -100,6 +100,7 @@ export default function ATSPage() {
 
   return (
     <div className="min-h-screen p-10 flex flex-col items-center bg-slate-50">
+
       {/* HEADER */}
       <div className="w-full max-w-4xl flex justify-between items-center mb-10">
         <div>
@@ -137,7 +138,7 @@ export default function ATSPage() {
           </label>
         </div>
 
-        {/* 🔥 UPDATED TEXTAREA */}
+        {/* TEXTAREA */}
         <div className="relative">
           <textarea
             className="w-full h-48 p-5 bg-white border-2 border-dashed border-slate-300 rounded-2xl 
@@ -166,11 +167,11 @@ export default function ATSPage() {
         </button>
       </div>
 
-      {/* RESULT */}
+      {/* RESULT (FIXED) */}
       {result && (
         <div className="w-full max-w-3xl mt-10 bg-white p-8 rounded-3xl shadow-xl">
           <div className="flex justify-between mb-6">
-            <h2 className="text-2xl font-bold">Analysis Result</h2>
+            <h2 className="text-2xl font-bold text-slate-800">Analysis Result</h2>
             <button
               onClick={handleFixAndDownload}
               disabled={fixing}
@@ -180,7 +181,10 @@ export default function ATSPage() {
             </button>
           </div>
 
-          <pre className="whitespace-pre-wrap text-sm">{result}</pre>
+          {/* 🔥 FIXED TEXT VISIBILITY */}
+          <pre className="whitespace-pre-wrap text-sm text-slate-800 bg-slate-50 p-5 rounded-xl border border-slate-200 leading-relaxed">
+            {result}
+          </pre>
         </div>
       )}
     </div>
