@@ -64,12 +64,43 @@ export default function ATSPage() {
       const data = await res.json();
 
       if (data.improvedResume) {
+        // 🔥 FINAL PDF FIX (FORCE BLACK TEXT)
         const htmlContent = `
           <style>
-            li, p, ul { page-break-inside: avoid; }
-            h1, h2, h3, h4 { page-break-after: avoid; }
+            * {
+              color: #000 !important;
+              background: #fff !important;
+            }
+
+            body {
+              font-family: Arial, sans-serif;
+              color: #000;
+              background: #fff;
+            }
+
+            li, p, ul {
+              page-break-inside: avoid;
+            }
+
+            h1, h2, h3, h4 {
+              page-break-after: avoid;
+              color: #000;
+            }
+
+            a {
+              color: #000 !important;
+              text-decoration: none;
+            }
           </style>
-          <div style="width: 100%; max-width: 800px; margin: 0 auto; font-family: Arial; padding: 20px;">
+
+          <div style="
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #000;
+            background: #fff;
+          ">
             ${data.improvedResume}
           </div>
         `;
@@ -82,8 +113,16 @@ export default function ATSPage() {
             margin: 10,
             filename: "ATS_Optimized_Resume.pdf",
             image: { type: "jpeg", quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: "#ffffff",
+            },
+            jsPDF: {
+              unit: "mm",
+              format: "a4",
+              orientation: "portrait",
+            },
           })
           .from(htmlContent)
           .save();
@@ -167,7 +206,7 @@ export default function ATSPage() {
         </button>
       </div>
 
-      {/* RESULT (FIXED) */}
+      {/* RESULT */}
       {result && (
         <div className="w-full max-w-3xl mt-10 bg-white p-8 rounded-3xl shadow-xl">
           <div className="flex justify-between mb-6">
@@ -181,7 +220,7 @@ export default function ATSPage() {
             </button>
           </div>
 
-          {/* 🔥 FIXED TEXT VISIBILITY */}
+          {/* FIXED TEXT VISIBILITY */}
           <pre className="whitespace-pre-wrap text-sm text-slate-800 bg-slate-50 p-5 rounded-xl border border-slate-200 leading-relaxed">
             {result}
           </pre>
