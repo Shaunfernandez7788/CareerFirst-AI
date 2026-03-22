@@ -25,29 +25,36 @@ export default function InterviewContent() {
   const recognitionRef = useRef<any>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll chat
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chat]);
 
-  // 🎤 IMPROVED SPEECH RECOGNITION
+  // 🎤 FIXED SPEECH RECOGNITION (No Duplication)
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = true; // Keep listening
-      recognition.interimResults = true; // Show results as you speak
+      recognition.continuous = true; 
+      recognition.interimResults = false; // Only stable results
       recognition.lang = "en-US";
 
       recognition.onresult = (event: any) => {
-        let transcript = "";
+        let newTranscript = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            newTranscript += event.results[i][0].transcript;
+          }
         }
-        setCurrentAnswer(prev => prev + " " + transcript);
+        
+        if (newTranscript) {
+          setCurrentAnswer(prev => {
+            const trimmedPrev = prev.trim();
+            return trimmedPrev ? `${trimmedPrev} ${newTranscript.trim()}` : newTranscript.trim();
+          });
+        }
       };
 
       recognition.onend = () => setIsListening(false);
@@ -56,12 +63,15 @@ export default function InterviewContent() {
   }, []);
 
   const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
+    try {
+      if (isListening) {
+        recognitionRef.current?.stop();
+      } else {
+        recognitionRef.current?.start();
+        setIsListening(true);
+      }
+    } catch (err) {
       setIsListening(false);
-    } else {
-      recognitionRef.current?.start();
-      setIsListening(true);
     }
   };
 
@@ -127,7 +137,6 @@ export default function InterviewContent() {
   const submitAnswer = async () => {
     if (!currentAnswer.trim() || loading) return;
     const userMsg = { type: "user-answer" as const, content: currentAnswer };
-    setChat(prev => [...prev, userMsg]);
     const lastAnswer = currentAnswer;
     setCurrentAnswer("");
     setLoading(true);
@@ -142,19 +151,20 @@ export default function InterviewContent() {
       const dataFeed = await resFeed.json();
       setScore(prev => prev + (dataFeed.score || 0));
 
-      setChat(prev => [...prev, { type: "ai-feedback", content: dataFeed.feedback || "Good effort." }]);
+      const chatWithFeedback = [...chat, userMsg, { type: "ai-feedback" as const, content: dataFeed.feedback || "Good effort." }];
+      setChat(chatWithFeedback);
 
       const resNext = await fetch("/api/generate-question", {
         method: "POST",
         body: JSON.stringify({ 
           role, 
           company, 
-          previousQuestions: [...chat, userMsg].filter(m => m.type === "ai-question").map(m => m.content) 
+          previousQuestions: chatWithFeedback.filter(m => m.type === "ai-question").map(m => m.content) 
         }),
       });
       const dataNext = await resNext.json();
       if (dataNext.question) {
-        setChat(prev => [...prev, { type: "ai-question", content: dataNext.question }]);
+        setChat([...chatWithFeedback, { type: "ai-question", content: dataNext.question }]);
       }
     } catch (err) {
       console.error(err);
@@ -163,26 +173,26 @@ export default function InterviewContent() {
   };
 
   return (
-    <div className="min-h-screen p-6 md:p-10 flex flex-col items-center bg-[#f8fafc]">
+    <div className="w-full max-w-6xl flex flex-col items-center">
       {/* HEADER SECTION */}
       <div className="text-center mb-10">
-        <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight mb-2">
+        <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight mb-2 drop-shadow-sm">
           Interview Pro <span className="text-blue-600">🚀</span>
         </h1>
-        <div className="inline-block bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider">
-          Score: {score}
+        <div className="inline-block bg-white border border-slate-200 text-blue-600 px-6 py-2 rounded-2xl text-sm font-bold uppercase tracking-widest shadow-sm">
+          Live Score: {score}
         </div>
       </div>
 
       {!isStarted ? (
-        <div className="bg-white p-10 rounded-3xl shadow-xl shadow-slate-200 border border-slate-100 w-full max-w-md space-y-6">
+        <div className="bg-white p-10 rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Target Role</label>
             <input
               placeholder="e.g. Java Developer"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 font-medium"
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 font-medium transition-all"
             />
           </div>
           <div>
@@ -191,83 +201,84 @@ export default function InterviewContent() {
               placeholder="e.g. MindMatrix"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 font-medium"
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 font-medium transition-all"
             />
           </div>
           <button
             onClick={startInterview}
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg active:scale-95 disabled:bg-slate-300"
+            className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg active:scale-95 disabled:bg-slate-300 shadow-blue-200"
           >
             {loading ? "Preparing Room..." : "Start Interview"}
           </button>
         </div>
       ) : (
-        <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-700">
           
-          {/* LEFT: MONITORING */}
+          {/* MONITORING BAR */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white p-4 rounded-3xl shadow-lg border border-slate-100 relative overflow-hidden">
-              <Webcam ref={webcamRef} className="rounded-2xl w-full grayscale-[30%]" mirrored={true} />
+            <div className="bg-white p-4 rounded-3xl shadow-xl border border-slate-100 relative overflow-hidden group">
+              <Webcam ref={webcamRef} className="rounded-2xl w-full grayscale-[20%] group-hover:grayscale-0 transition-all duration-500" mirrored={true} />
               {warning && (
-                <div className="absolute inset-x-0 bottom-0 bg-red-500/90 backdrop-blur-md text-white text-[10px] font-bold py-2 text-center animate-pulse">
+                <div className="absolute inset-x-0 bottom-0 bg-red-600/90 backdrop-blur-md text-white text-[11px] font-bold py-2.5 text-center animate-pulse tracking-wide">
                   ⚠️ {warning}
                 </div>
               )}
             </div>
-            <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100">
-              <h3 className="text-slate-400 text-xs font-bold uppercase mb-4 tracking-widest">Interview Progress</h3>
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500" style={{ width: `${(chat.length / 10) * 100}%` }}></div>
+            <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-100">
+              <h3 className="text-slate-400 text-[10px] font-bold uppercase mb-4 tracking-widest">Session Progress</h3>
+              <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${Math.min((chat.length / 10) * 100, 100)}%` }}></div>
               </div>
             </div>
           </div>
 
-          {/* RIGHT: CHAT & INPUT */}
+          {/* CHAT BOX & INPUT */}
           <div className="lg:col-span-2 flex flex-col gap-6">
             <div 
               ref={chatContainerRef}
-              className="bg-white p-8 h-[450px] overflow-y-auto rounded-3xl shadow-lg border border-slate-100 space-y-6"
+              className="bg-white p-8 h-[480px] overflow-y-auto rounded-3xl shadow-xl border border-slate-100 space-y-6 scroll-smooth"
             >
-              {chat.length === 0 && <p className="text-slate-400 italic text-center mt-20">Interviewer is joining...</p>}
+              {chat.length === 0 && <p className="text-slate-400 italic text-center mt-24">Setting up your interview session...</p>}
               {chat.map((msg, i) => (
                 <div key={i} className={`flex flex-col ${msg.type === "user-answer" ? "items-end" : "items-start"}`}>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">
-                    {msg.type === "ai-question" ? "Interviewer" : msg.type === "ai-feedback" ? "AI Feedback" : "You"}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1">
+                    {msg.type === "ai-question" ? "Interviewer" : msg.type === "ai-feedback" ? "Insight" : "You"}
                   </span>
-                  <div className={`p-4 rounded-2xl max-w-[90%] text-sm leading-relaxed shadow-sm ${
+                  <div className={`p-4 rounded-2xl max-w-[85%] text-[13px] leading-relaxed shadow-sm transition-all ${
                     msg.type === "user-answer" 
                       ? "bg-blue-600 text-white rounded-tr-none" 
                       : msg.type === "ai-feedback" 
-                      ? "bg-amber-50 text-amber-900 border border-amber-100 rounded-tl-none"
+                      ? "bg-amber-50 text-amber-900 border border-amber-100 rounded-tl-none font-medium"
                       : "bg-slate-50 text-slate-800 border border-slate-100 rounded-tl-none"
                   }`}>
                     {msg.content}
                   </div>
                 </div>
               ))}
-              {loading && <div className="text-blue-500 text-xs animate-pulse font-bold">Interviewer is thinking...</div>}
+              {loading && <div className="text-blue-500 text-[11px] animate-pulse font-bold tracking-widest uppercase">Processing Response...</div>}
             </div>
 
-            <div className="relative group">
+            <div className="relative">
               <textarea
                 value={currentAnswer}
                 onChange={(e) => setCurrentAnswer(e.target.value)}
-                placeholder="Type your answer here..."
-                className="w-full p-6 bg-white border border-slate-200 rounded-3xl shadow-xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 min-h-[120px] transition-all pr-32"
+                placeholder="Share your technical expertise here..."
+                className="w-full p-6 bg-white border border-slate-200 rounded-3xl shadow-2xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 min-h-[140px] transition-all pr-36 text-sm leading-relaxed"
               />
-              <div className="absolute right-4 bottom-4 flex gap-2">
+              <div className="absolute right-4 bottom-4 flex gap-3">
                 <button
+                  type="button"
                   onClick={toggleListening}
-                  className={`p-3 rounded-xl transition-all ${isListening ? "bg-red-500 animate-pulse text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
-                  title="Speak Answer"
+                  className={`p-3.5 rounded-2xl transition-all shadow-sm ${isListening ? "bg-red-500 animate-pulse text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
                 >
                   {isListening ? "⏹️" : "🎤"}
                 </button>
                 <button
+                  type="button"
                   onClick={submitAnswer}
                   disabled={!currentAnswer.trim() || loading}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg active:scale-95 disabled:bg-slate-200 transition-all"
+                  className="bg-blue-600 text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-blue-700 shadow-xl active:scale-95 disabled:bg-slate-200 transition-all text-sm"
                 >
                   Submit
                 </button>
