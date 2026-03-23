@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation"; // Import for URL params
 import Webcam from "react-webcam";
 
 type Message = {
@@ -9,6 +10,8 @@ type Message = {
 };
 
 export default function InterviewContent() {
+  const searchParams = useSearchParams();
+  
   const [role, setRole] = useState("");
   const [company, setCompany] = useState("");
   const [chat, setChat] = useState<Message[]>([]);
@@ -26,12 +29,27 @@ export default function InterviewContent() {
   const recognitionRef = useRef<any>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
+  // 1. Auto-fill logic from URL Parameters
+  useEffect(() => {
+    const roleParam = searchParams.get("role");
+    const companyParam = searchParams.get("company");
+
+    if (roleParam) setRole(roleParam);
+    if (companyParam) setCompany(companyParam);
+
+    // Optional: If you want it to start immediately when coming from Job Search
+    if (roleParam && companyParam && !isStarted && !loading) {
+        // We trigger startInterview manually or wait for the user to click
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chat, loading]);
 
+  // 🎤 Speech Recognition Logic
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -60,6 +78,7 @@ export default function InterviewContent() {
     } catch (err) { setIsListening(false); }
   };
 
+  // 📷 Face API Loading
   useEffect(() => {
     const loadModels = async () => {
       try {
@@ -72,6 +91,7 @@ export default function InterviewContent() {
     loadModels();
   }, []);
 
+  // 👀 Face Detection Loop
   useEffect(() => {
     if (!isStarted || !modelsLoaded) return;
     const interval = setInterval(async () => {
@@ -83,6 +103,7 @@ export default function InterviewContent() {
     return () => clearInterval(interval);
   }, [isStarted, modelsLoaded]);
 
+  // 🚀 Start Interview
   const startInterview = async () => {
     if (!role.trim()) return alert("Please enter a role");
     setLoading(true);
@@ -138,7 +159,6 @@ export default function InterviewContent() {
     finally { setLoading(false); }
   };
 
-  // --- CENTERED FINISH VIEW ---
   if (isFinished) {
     return (
       <div className="w-full flex items-center justify-center min-h-[70vh] px-4">
@@ -170,8 +190,14 @@ export default function InterviewContent() {
 
       {!isStarted ? (
         <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-slate-100 w-full max-w-lg space-y-8 animate-in fade-in zoom-in-95 duration-500">
-          <input placeholder="Job Role (e.g. Java Developer)" value={role} onChange={(e) => setRole(e.target.value)} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 outline-none font-semibold text-slate-900" />
-          <input placeholder="Company (e.g. Google)" value={company} onChange={(e) => setCompany(e.target.value)} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 outline-none font-semibold text-slate-900" />
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Target Role</label>
+            <input placeholder="Job Role (e.g. Java Developer)" value={role} onChange={(e) => setRole(e.target.value)} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 outline-none font-semibold text-slate-900" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Company</label>
+            <input placeholder="Company (e.g. Google)" value={company} onChange={(e) => setCompany(e.target.value)} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-blue-500 outline-none font-semibold text-slate-900" />
+          </div>
           <button onClick={startInterview} disabled={loading} className="w-full bg-blue-600 text-white py-5 rounded-2xl font-bold text-xl hover:bg-blue-700 shadow-xl shadow-blue-100 disabled:bg-slate-200 transition-all">
             {loading ? "Connecting..." : "Begin Interview"}
           </button>
