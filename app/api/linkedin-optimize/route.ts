@@ -6,7 +6,6 @@ export async function POST(req: Request) {
   try {
     const { headline, bio, targetRole } = await req.json();
 
-    // ✅ VALIDATION
     if (!targetRole || !headline) {
       return Response.json(
         { error: "Role and Headline are required" },
@@ -17,24 +16,24 @@ export async function POST(req: Request) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      console.error("❌ GEMINI_API_KEY missing");
+      console.error("❌ Missing API Key");
       return Response.json(
-        { error: "API Key missing" },
+        { error: "Missing GEMINI_API_KEY" },
         { status: 500 }
       );
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // ✅ FIXED MODEL (WORKING)
+    // ✅ WORKING MODEL
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash", // 🔥 stable model
+      model: "gemini-2.0-flash",
     });
 
     const prompt = `
-You are a LinkedIn Profile Expert.
+You are a LinkedIn Profile Optimizer.
 
-Optimize this profile for a ${targetRole} role.
+Target Role: ${targetRole}
 
 Headline:
 ${headline}
@@ -42,7 +41,7 @@ ${headline}
 Bio:
 ${bio}
 
-Return response in this format ONLY:
+Give output in this format ONLY:
 
 Score: X/100
 Headline: ...
@@ -54,27 +53,21 @@ Improvements:
 `;
 
     const result = await model.generateContent(prompt);
-
     const text = result.response.text();
 
-    // ✅ SAFE FALLBACK (prevents crash)
-    if (!text || text.trim().length === 0) {
-      return Response.json({
-        analysis: "⚠️ AI could not generate response. Try again.",
-      });
+    if (!text || text.trim() === "") {
+      throw new Error("Empty response from Gemini");
     }
 
-    return Response.json({
-      analysis: text.trim(),
-    });
+    return Response.json({ analysis: text });
 
   } catch (error: any) {
-    console.error("❌ LinkedIn Optimization Error:", error);
+    console.error("🔥 FULL ERROR:", error);
 
     return Response.json(
       {
         error: "Optimization failed",
-        details: error.message || "Unknown error",
+        details: error?.message || "Unknown error",
       },
       { status: 500 }
     );
