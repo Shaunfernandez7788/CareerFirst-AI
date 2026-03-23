@@ -1,45 +1,72 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+
+// 1. Extend timeout for Vercel Serverless Functions
+export const maxDuration = 60; 
 
 export async function POST(req: Request) {
   try {
     const { headline, bio, targetRole } = await req.json();
 
-    // 1. Check if the API key exists
-    if (!process.env.GEMINI_API_KEY) {
-      console.error("Missing GEMINI_API_KEY in .env.local");
-      return Response.json({ error: "API Key not configured" }, { status: 500 });
+    // 2. Immediate Validation
+    if (!targetRole || !headline) {
+      return Response.json({ error: "Role and Headline are required" }, { status: 400 });
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("CRITICAL: GEMINI_API_KEY missing in Vercel Environment Variables");
+      return Response.json({ error: "API Key Configuration Error" }, { status: 500 });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    // 3. FIXED: Use gemini-2.5-flash for 2026 stability
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_NONE,
+        },
+      ],
+    });
 
     const prompt = `
-      You are an expert LinkedIn Profile Strategist in Bengaluru. 
-      Analyze this profile for a ${targetRole} position.
+      You are a world-class LinkedIn Profile Strategist. Optimize the following profile for a ${targetRole} position.
       
       Current Headline: ${headline}
-      Current Bio: ${bio}
+      Current About/Bio: ${bio}
 
-      Provide a response in exactly this format:
+      Please provide your response in this EXACT format:
       **Score**: [0-100]/100
-      **Suggested Headline**: [A keyword-rich, punchy headline]
-      **Top Keywords**: [5 keywords recruiters in Bengaluru look for]
-      **Bio Strategy**: [3 bullet points to improve the About section]
+      **Suggested Headline**: [Your optimized headline]
+      **Top Keywords**: [5 relevant keywords]
+      **Bio Strategy**: [3 bullet points for improvement]
       
-      Be professional and output ONLY the analysis.
+      Keep the tone professional and बेंगलुरु (Bengaluru) tech-market focused. Output ONLY the analysis.
     `;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
-    if (!text) throw new Error("AI returned an empty response");
+    if (!text || text.trim().length === 0) {
+      throw new Error("AI returned empty content");
+    }
 
-    return Response.json({ analysis: text });
+    return Response.json({ analysis: text.trim() });
 
   } catch (error: any) {
-    // 2. Check your VS Code terminal for this log!
-    console.error("LinkedIn API Error:", error.message || error);
-    return Response.json({ error: "Failed to optimize profile" }, { status: 500 });
+    console.error("LinkedIn Optimization Error:", error.message || error);
+    
+    // Returns the actual error message to your frontend alert for easier debugging
+    return Response.json({ 
+      error: "Optimization failed", 
+      details: error.message 
+    }, { status: 500 });
   }
 }
