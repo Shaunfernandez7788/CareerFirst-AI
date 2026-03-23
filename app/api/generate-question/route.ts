@@ -4,29 +4,43 @@ export async function POST(req: Request) {
   try {
     const { role, company, previousQuestions } = await req.json();
 
-    // 1. Validation to prevent empty prompts
     if (!role) {
       return Response.json({ error: "Role is required" }, { status: 400 });
     }
 
-    const companyContext = company ? `for ${company}` : "for a top tier company";
+    const companyContext = company ? `at ${company}` : "at a top-tier tech company";
     const avoidContext = previousQuestions && previousQuestions.length > 0 
-      ? `Do NOT ask any of these questions: ${previousQuestions.join(" | ")}` 
+      ? `Avoid these topics: ${previousQuestions.join(" | ")}` 
       : "";
 
+    // FIXED PROMPT: Enforcing simple, foundational, and conversational questions
     const prompt = `
-      You are an expert technical interviewer hiring ${companyContext}. 
-      The candidate is applying for a ${role} position. 
-      Ask exactly ONE relevant, challenging interview question.
-      ${avoidContext}
-      Output ONLY the question text. No intro, no quotes, no formatting.
+      You are a friendly, encouraging Junior Technical Interviewer hiring for a ${role} position ${companyContext}.
+      
+      YOUR GOAL: 
+      Ask ONE simple, foundational, or beginner-level technical question. 
+      Focus on core concepts (like basic OOP, basic syntax, or simple logic) rather than complex architecture.
+      
+      GUIDELINES:
+      - Be conversational and professional.
+      - Do NOT ask multi-part or high-level system design questions.
+      - If the user is a student, ask about a fundamental project feature.
+      - ${avoidContext}
+
+      OUTPUT ONLY THE QUESTION TEXT. No introduction, no quotes, no extra formatting.
     `;
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+    // Ensure the API key exists
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is missing in environment variables.");
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
     
-    // 2. Add Safety Settings to prevent blocks on company names like "Booz Allen"
+    // Using gemini-1.5-flash for the best balance of speed and reliability on Vercel
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-flash", 
       safetySettings: [
         {
           category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -39,21 +53,22 @@ export async function POST(req: Request) {
       ],
     });
 
+    // Added a 10-second timeout safety for Vercel Serverless
     const result = await model.generateContent(prompt);
-    
-    // 3. More reliable text extraction
     const response = await result.response;
     const text = response.text();
 
     if (!text || text.trim().length === 0) {
-      throw new Error("AI returned an empty response.");
+      throw new Error("AI returned empty content.");
     }
 
     return Response.json({ question: text.trim() });
 
   } catch (error: any) {
-    // 4. Detailed logging so you can see the REAL error in your terminal
-    console.error("Gemini AI Detailed Error:", error.message || error);
-    return Response.json({ error: "Failed to generate question" }, { status: 500 });
+    console.error("CRITICAL API ERROR:", error.message || error);
+    return Response.json({ 
+      error: "Interviewer failed to join", 
+      details: error.message 
+    }, { status: 500 });
   }
 }
